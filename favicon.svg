@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#161616"/>
+      <stop offset="100%" stop-color="#5f1d14"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6d365"/>
+      <stop offset="100%" stop-color="#f2a900"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <circle cx="32" cy="32" r="22" fill="none" stroke="url(#gold)" stroke-width="2.4"/>
+  <path d="M32 10c5.8 0 10.5 4.7 10.5 10.5S37.8 31 32 31c-5.8 0-10.5 4.7-10.5 10.5S26.2 52 32 52c-12.2 0-22-9.8-22-22S19.8 8 32 8Z" fill="#f4efe6"/>
+  <path d="M32 12c-4.6 0-8.5 3.8-8.5 8.5S27.4 29 32 29c4.6 0 8.5 3.8 8.5 8.5S36.6 46 32 46c7.7 0 14-6.3 14-14S39.7 18 32 18Z" fill="#111111" opacity="0.98"/>
+  <circle cx="32" cy="21" r="2.8" fill="#111111"/>
+  <circle cx="32" cy="43" r="2.8" fill="#f4efe6"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#f6d365" stroke-opacity="0.18" stroke-width="1"/>
+  <path d="M32 3l1.6 4.8L38.5 6l-2 4.6 4.8 1.6-4.8 1.6 2 4.6-4.9-1.8L32 21l-1.6-4.8-4.9 1.8 2-4.6-4.8-1.6 4.8-1.6-2-4.6 4.9 1.8Z" fill="url(#gold)"/>
+</svg>
