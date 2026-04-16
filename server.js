@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {Readable} from 'stream';
+import { buildFortuneRequest } from './server/fortuneRequests.js';
 
 const app = express();
 const port = Number(process.env.PORT || 9999);
@@ -70,11 +71,23 @@ app.get('/api/models', async (_req, res) => {
   }
 });
 
-app.post('/api/responses', async (req, res) => {
+app.post('/api/fortune', async (req, res) => {
   if (!apiKey) {
     res.status(500).json({
       error: {
         message: 'OPENAI_API_KEY is missing on the server.',
+      },
+    });
+    return;
+  }
+
+  let upstreamBody;
+  try {
+    upstreamBody = buildFortuneRequest(req.body);
+  } catch (error) {
+    res.status(400).json({
+      error: {
+        message: error instanceof Error ? error.message : '请求参数不正确。',
       },
     });
     return;
@@ -87,7 +100,7 @@ app.post('/api/responses', async (req, res) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(upstreamBody),
     });
 
     const contentType = upstreamResponse.headers.get('content-type');
@@ -97,7 +110,7 @@ app.post('/api/responses', async (req, res) => {
 
     res.status(upstreamResponse.status);
 
-    if (req.body?.stream && upstreamResponse.body) {
+    if (upstreamResponse.body) {
       const cacheControl = upstreamResponse.headers.get('cache-control');
       if (cacheControl) {
         res.setHeader('Cache-Control', cacheControl);
@@ -115,13 +128,21 @@ app.post('/api/responses', async (req, res) => {
     const payload = await upstreamResponse.text();
     res.send(payload);
   } catch (error) {
-    console.error('Proxy responses request failed:', error);
+    console.error('Fortune request failed:', error);
     res.status(502).json({
       error: {
-        message: 'Upstream OpenAI responses proxy request failed.',
+        message: 'Upstream fortune request failed.',
       },
     });
   }
+});
+
+app.use('/api/responses', (_req, res) => {
+  res.status(410).json({
+    error: {
+      message: '通用 OpenAI 代理接口已禁用，请使用业务测算接口。',
+    },
+  });
 });
 
 app.use('/api', (_req, res) => {

@@ -10,6 +10,7 @@ import {
   getCompatibilityRelationshipLabel,
   type CompatibilityRelationship,
 } from '../services/compatibilityRelationship';
+import { buildFourPillarsFromBirthInfo, type FourPillarDisplay } from '../utils/displayUtils';
 
 interface CompatibilityResultProps {
   result: ICompatibilityResult;
@@ -24,6 +25,8 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
   const relationship = compatibilityInfo.relationship || DEFAULT_COMPATIBILITY_RELATIONSHIP;
   const relationshipLabel = getCompatibilityRelationshipLabel(relationship);
   const resultTitles = COMPATIBILITY_RESULT_TITLES[relationship];
+  const person1Pillars = buildFourPillarsFromBirthInfo(compatibilityInfo.birthDate1, compatibilityInfo.birthTime1);
+  const person2Pillars = buildFourPillarsFromBirthInfo(compatibilityInfo.birthDate2, compatibilityInfo.birthTime2);
 
   const handleShare = async () => {
     setIsGeneratingImage(true);
@@ -80,27 +83,19 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
             </h3>
           </motion.div>
           
-          <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 mb-16">
-            {/* Person 1 */}
-            <motion.div 
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-center space-y-4"
-            >
-              <div className="text-gold/60 text-sm tracking-widest font-medium uppercase">主测人八字</div>
-              <div className="text-2xl md:text-3xl font-bold tracking-[0.2em] text-paper">
-                {result.person1Bazi}
-              </div>
-              <div className="text-xs text-paper/40 tracking-widest mt-2">
-                {compatibilityInfo.gender1}命 · {compatibilityInfo.calendarType1 === 'lunar' ? `农历 ${compatibilityInfo.birthDate1.split('-')[0]}年${compatibilityInfo.isLeapMonth1 ? '闰' : ''}${compatibilityInfo.birthDate1.split('-')[1]}月${compatibilityInfo.birthDate1.split('-')[2]}日` : `公历 ${compatibilityInfo.birthDate1.replace(/-/g, '/')}`} {compatibilityInfo.birthTime1}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_160px_1fr] gap-8 md:gap-10 mb-16 items-start">
+            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }}>
+              <PillarPanel
+                title="主测人八字"
+                pillars={person1Pillars}
+                meta={`${compatibilityInfo.gender1}命 · ${compatibilityInfo.calendarType1 === 'lunar' ? `农历 ${compatibilityInfo.birthDate1.split('-')[0]}年${compatibilityInfo.isLeapMonth1 ? '闰' : ''}${compatibilityInfo.birthDate1.split('-')[1]}月${compatibilityInfo.birthDate1.split('-')[2]}日` : `公历 ${compatibilityInfo.birthDate1.replace(/-/g, '/')}`} ${compatibilityInfo.birthTime1}`}
+              />
             </motion.div>
 
-            {/* Score */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative w-32 h-32 flex items-center justify-center"
+              className="relative w-32 h-32 flex items-center justify-center mx-auto mt-4 lg:mt-24"
             >
               <div className="absolute inset-0 border-4 border-gold/20 rounded-full animate-[spin_10s_linear_infinite]"></div>
               <div className="absolute inset-2 border-2 border-dashed border-cinnabar/30 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
@@ -110,19 +105,12 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
               </div>
             </motion.div>
 
-            {/* Person 2 */}
-            <motion.div 
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-center space-y-4"
-            >
-              <div className="text-gold/60 text-sm tracking-widest font-medium uppercase">合测人八字</div>
-              <div className="text-2xl md:text-3xl font-bold tracking-[0.2em] text-paper">
-                {result.person2Bazi}
-              </div>
-              <div className="text-xs text-paper/40 tracking-widest mt-2">
-                {compatibilityInfo.gender2}命 · {compatibilityInfo.calendarType2 === 'lunar' ? `农历 ${compatibilityInfo.birthDate2.split('-')[0]}年${compatibilityInfo.isLeapMonth2 ? '闰' : ''}${compatibilityInfo.birthDate2.split('-')[1]}月${compatibilityInfo.birthDate2.split('-')[2]}日` : `公历 ${compatibilityInfo.birthDate2.replace(/-/g, '/')}`} {compatibilityInfo.birthTime2}
-              </div>
+            <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}>
+              <PillarPanel
+                title="合测人八字"
+                pillars={person2Pillars}
+                meta={`${compatibilityInfo.gender2}命 · ${compatibilityInfo.calendarType2 === 'lunar' ? `农历 ${compatibilityInfo.birthDate2.split('-')[0]}年${compatibilityInfo.isLeapMonth2 ? '闰' : ''}${compatibilityInfo.birthDate2.split('-')[1]}月${compatibilityInfo.birthDate2.split('-')[2]}日` : `公历 ${compatibilityInfo.birthDate2.replace(/-/g, '/')}`} ${compatibilityInfo.birthTime2}`}
+              />
             </motion.div>
           </div>
           <div className="text-center text-gold/70 text-sm tracking-[0.3em]">
@@ -156,7 +144,15 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
               <div className="grid grid-cols-[1fr_220px_1fr] gap-8 items-center">
                 <div className="space-y-3">
                   <div className="text-sm text-white/60 tracking-[0.28em]">主测八字</div>
-                  <div className="text-3xl font-bold tracking-[0.18em]">{result.person1Bazi}</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {person1Pillars.map((pillar) => (
+                      <div key={`share-left-${pillar.label}`} className="rounded-[18px] bg-white/10 px-3 py-4 text-center">
+                        <div className="text-[11px] text-white/45 mb-2 tracking-[0.2em]">{pillar.label}</div>
+                        <div className="text-2xl font-bold leading-tight">{pillar.tiangan}</div>
+                        <div className="text-2xl font-bold leading-tight text-white/82">{pillar.dizhi}</div>
+                      </div>
+                    ))}
+                  </div>
                   <div className="text-sm text-white/70">
                     {compatibilityInfo.gender1} · {compatibilityInfo.birthDate1} {compatibilityInfo.birthTime1}
                   </div>
@@ -167,7 +163,15 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
                 </div>
                 <div className="space-y-3 text-right">
                   <div className="text-sm text-white/60 tracking-[0.28em]">合测八字</div>
-                  <div className="text-3xl font-bold tracking-[0.18em]">{result.person2Bazi}</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {person2Pillars.map((pillar) => (
+                      <div key={`share-right-${pillar.label}`} className="rounded-[18px] bg-white/10 px-3 py-4 text-center">
+                        <div className="text-[11px] text-white/45 mb-2 tracking-[0.2em]">{pillar.label}</div>
+                        <div className="text-2xl font-bold leading-tight">{pillar.tiangan}</div>
+                        <div className="text-2xl font-bold leading-tight text-white/82">{pillar.dizhi}</div>
+                      </div>
+                    ))}
+                  </div>
                   <div className="text-sm text-white/70">
                     {compatibilityInfo.gender2} · {compatibilityInfo.birthDate2} {compatibilityInfo.birthTime2}
                   </div>
@@ -210,5 +214,23 @@ export default function CompatibilityResult({ result, compatibilityInfo, onReset
         </button>
       </div>
     </motion.div>
+  );
+}
+
+function PillarPanel({ title, pillars, meta }: { title: string; pillars: FourPillarDisplay[]; meta: string }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center text-gold/60 text-sm tracking-widest font-medium uppercase">{title}</div>
+      <div className="grid grid-cols-4 gap-2 md:gap-3">
+        {pillars.map((pillar) => (
+          <div key={pillar.label} className="rounded-[18px] border border-white/10 bg-white/5 px-2 py-4 text-center">
+            <div className="text-[10px] md:text-xs text-paper/35 tracking-[0.2em] mb-3">{pillar.label}</div>
+            <div className="text-3xl md:text-4xl font-bold leading-none text-paper">{pillar.tiangan}</div>
+            <div className="mt-2 text-3xl md:text-4xl font-bold leading-none text-paper/80">{pillar.dizhi}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-center text-xs text-paper/40 tracking-widest">{meta}</div>
+    </div>
   );
 }

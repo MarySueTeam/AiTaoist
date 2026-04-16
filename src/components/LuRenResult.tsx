@@ -4,6 +4,7 @@ import { LuRenResult as ILuRenResult } from '../services/fortuneService';
 import { Scroll, MessageCircle, Share2, Download, Loader2 } from 'lucide-react';
 import { shareAsImage } from '../utils/shareUtils';
 import { useState, useRef } from 'react';
+import { sanitizeDisplayText, shouldUseCompactDivinationLayout } from '../utils/displayUtils';
 
 interface LuRenResultProps {
   result: ILuRenResult;
@@ -14,6 +15,8 @@ export default function LuRenResult({ result, onReset }: LuRenResultProps) {
   const SHARE_CARD_ID = 'luren-share-card';
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const compactSike = shouldUseCompactDivinationLayout(result.sike, 2);
+  const compactSanchuan = shouldUseCompactDivinationLayout(result.sanchuan, 2);
 
   const handleShare = async () => {
     setIsGeneratingImage(true);
@@ -43,26 +46,49 @@ export default function LuRenResult({ result, onReset }: LuRenResultProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-6">
             <h4 className="text-paper/50 text-sm border-b border-paper/20 pb-2 tracking-widest text-center lg:text-left">四课</h4>
-            <div className="flex justify-around items-end h-40">
-              {result.sike.map((ke, idx) => (
-                <div key={idx} className="writing-vertical text-2xl md:text-3xl font-bold tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-paper to-paper/50">
-                  {ke}
-                </div>
-              ))}
-            </div>
+            {compactSike ? (
+              <div className="flex justify-around items-end h-40">
+                {result.sike.map((ke, idx) => (
+                  <div key={idx} className="writing-vertical text-2xl md:text-3xl font-bold tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-paper to-paper/50">
+                    {sanitizeDisplayText(ke)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {result.sike.map((ke, idx) => (
+                  <div key={idx} className="min-h-24 rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-center text-sm md:text-base leading-relaxed text-paper/90 whitespace-pre-wrap break-words flex items-center justify-center">
+                    {sanitizeDisplayText(ke)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-6">
             <h4 className="text-paper/50 text-sm border-b border-paper/20 pb-2 tracking-widest text-center lg:text-left">三传</h4>
-            <div className="flex justify-around items-end h-40">
-              {result.sanchuan.map((chuan, idx) => (
-                <div key={idx} className="flex flex-col items-center">
-                  <span className="text-xs text-jade mb-4 tracking-widest">{['初传', '中传', '末传'][idx]}</span>
-                  <div className="writing-vertical text-3xl md:text-4xl font-bold tracking-[0.3em] text-paper drop-shadow-md">
-                    {chuan}
+            {compactSanchuan ? (
+              <div className="flex justify-around items-end h-40">
+                {result.sanchuan.map((chuan, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                    <span className="text-xs text-jade mb-4 tracking-widest">{['初传', '中传', '末传'][idx]}</span>
+                    <div className="writing-vertical text-3xl md:text-4xl font-bold tracking-[0.3em] text-paper drop-shadow-md">
+                      {sanitizeDisplayText(chuan)}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {result.sanchuan.map((chuan, idx) => (
+                  <div key={idx} className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-4 text-center">
+                    <div className="text-xs text-jade mb-3 tracking-widest">{['初传', '中传', '末传'][idx]}</div>
+                    <div className="text-sm md:text-base leading-relaxed text-paper/90 whitespace-pre-wrap break-words">
+                      {sanitizeDisplayText(chuan)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         
@@ -108,24 +134,45 @@ export default function LuRenResult({ result, onReset }: LuRenResultProps) {
               <div className="grid grid-cols-2 gap-8">
                 <div className="rounded-[24px] border border-white/10 bg-white/5 p-6">
                   <div className="text-sm text-white/60 tracking-[0.28em] mb-4">四课</div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {result.sike.map((item, idx) => (
-                      <div key={`sike-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-6 text-center text-2xl font-bold tracking-[0.18em]">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
+                  {compactSike ? (
+                    <div className="grid grid-cols-4 gap-3">
+                      {result.sike.map((item, idx) => (
+                        <div key={`sike-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-6 text-center text-2xl font-bold tracking-[0.18em]">
+                          {sanitizeDisplayText(item)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {result.sike.map((item, idx) => (
+                        <div key={`sike-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-5 text-center text-sm leading-relaxed whitespace-pre-wrap break-words">
+                          {sanitizeDisplayText(item)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-[24px] border border-white/10 bg-white/5 p-6">
                   <div className="text-sm text-white/60 tracking-[0.28em] mb-4">三传</div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {result.sanchuan.map((item, idx) => (
-                      <div key={`sanchuan-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-6 text-center">
-                        <div className="text-xs text-[#d4af37] mb-2">{['初传', '中传', '末传'][idx]}</div>
-                        <div className="text-2xl font-bold tracking-[0.18em]">{item}</div>
-                      </div>
-                    ))}
-                  </div>
+                  {compactSanchuan ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      {result.sanchuan.map((item, idx) => (
+                        <div key={`sanchuan-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-6 text-center">
+                          <div className="text-xs text-[#d4af37] mb-2">{['初传', '中传', '末传'][idx]}</div>
+                          <div className="text-2xl font-bold tracking-[0.18em]">{sanitizeDisplayText(item)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {result.sanchuan.map((item, idx) => (
+                        <div key={`sanchuan-${idx}`} className="rounded-[18px] bg-white/10 px-4 py-5 text-center">
+                          <div className="text-xs text-[#d4af37] mb-2">{['初传', '中传', '末传'][idx]}</div>
+                          <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{sanitizeDisplayText(item)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-6 rounded-[24px] border border-white/10 bg-white/5 px-6 py-4 text-sm text-white/80">

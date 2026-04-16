@@ -458,7 +458,9 @@ function normalizeWuxingRatio(
   return normalized;
 }
 
-function sanitizeBasicFortuneSummaries(result: BasicFortuneResult): BasicFortuneResult {
+type BasicFortuneModelPayload = Omit<BasicFortuneResult, "bazi">;
+
+function sanitizeBasicFortuneSummaries(result: BasicFortuneModelPayload): BasicFortuneModelPayload {
   return {
     ...result,
     wuxingRatio: normalizeWuxingRatio(result.wuxingRatio),
@@ -550,13 +552,13 @@ async function readStreamingResponses(response: Response, onTextDelta?: (text: s
 }
 
 async function generateStructuredOutputText({
-  schemaName,
-  model,
-  systemInstruction,
-  prompt,
-  schema,
-  onTextDelta,
-  signal,
+  schemaName: _schemaName,
+  model: _model,
+  systemInstruction: _systemInstruction,
+  prompt: _prompt,
+  schema: _schema,
+  onTextDelta: _onTextDelta,
+  signal: _signal,
 }: {
   schemaName: string;
   model?: string;
@@ -566,39 +568,7 @@ async function generateStructuredOutputText({
   onTextDelta?: (text: string) => void;
   signal?: AbortSignal;
 }): Promise<string> {
-  const response = await fetch("/api/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    signal,
-    body: JSON.stringify({
-      model: model || currentModel,
-      instructions: systemInstruction,
-      input: prompt,
-      text: {
-        format: {
-          type: "json_schema",
-          name: schemaName,
-          strict: true,
-          schema: normalizeSchema(schema),
-        },
-      },
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const rawPayload = await response.text();
-    throw new Error(extractKeyErrorMessage(rawPayload, "请求失败，请稍后再试。", response.status));
-  }
-
-  const text = await readStreamingResponses(response, onTextDelta);
-  if (!text) {
-    throw new Error("No structured content returned from OpenAI.");
-  }
-
-  return text;
+  throw new Error("Legacy OpenAI proxy path is disabled. Use /api/fortune business endpoints.");
 }
 
 async function generateStructuredOutput<T>({
@@ -624,6 +594,66 @@ async function generateStructuredOutput<T>({
     systemInstruction,
     prompt,
     schema,
+    onTextDelta,
+    signal,
+  });
+
+  return parseStructuredJson<T>(text);
+}
+
+async function requestFortuneOutputText({
+  kind,
+  payload,
+  model,
+  onTextDelta,
+  signal,
+}: {
+  kind: string;
+  payload: Record<string, unknown>;
+  model?: string;
+  onTextDelta?: (text: string) => void;
+  signal?: AbortSignal;
+}): Promise<string> {
+  const response = await fetch("/api/fortune", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    signal,
+    body: JSON.stringify({
+      kind,
+      model: model || currentModel,
+      payload,
+    }),
+  });
+
+  if (!response.ok) {
+    const rawPayload = await response.text();
+    throw new Error(extractKeyErrorMessage(rawPayload, "请求失败，请稍后再试。", response.status));
+  }
+
+  const text = await readStreamingResponses(response, onTextDelta);
+  if (!text) {
+    throw new Error("No structured content returned from OpenAI.");
+  }
+
+  return text;
+}
+
+async function requestFortuneOutput<T>({
+  kind,
+  payload,
+  onTextDelta,
+  signal,
+}: {
+  kind: string;
+  payload: Record<string, unknown>;
+  onTextDelta?: (text: string) => void;
+  signal?: AbortSignal;
+}): Promise<T> {
+  const text = await requestFortuneOutputText({
+    kind,
+    payload,
     onTextDelta,
     signal,
   });
@@ -772,6 +802,31 @@ export async function calculateBasicFortune(
   toneMode: ToneMode | boolean = "default",
   options?: StreamRequestOptions
 ): Promise<BasicFortuneResult> {
+  {
+    const [year, month, day] = birthDate.split('-').map(Number);
+    const [hour, minute] = birthTime.split(':').map(Number);
+    const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    const lunar = solar.getLunar();
+    const exactBazi = `${lunar.getEightChar().getYear()} ${lunar.getEightChar().getMonth()} ${lunar.getEightChar().getDay()} ${lunar.getEightChar().getTime()}`;
+    const text = await requestFortuneOutputText({
+      kind: "basicFortune",
+      payload: { gender, birthDate, birthTime, toneMode: resolveToneMode(toneMode) },
+      onTextDelta: options?.onTextDelta,
+      signal: options?.signal,
+    });
+
+    try {
+      const parsed = parseStructuredJson<BasicFortuneModelPayload>(text);
+      const sanitized = sanitizeBasicFortuneSummaries(parsed);
+      return {
+        ...sanitized,
+        bazi: buildDeterministicBazi(exactBazi),
+      };
+    } catch {
+      throw new Error("基础信息解析失败。");
+    }
+  }
+
   const harshPrompt = getTonePrompt(toneMode);
 
   const [year, month, day] = birthDate.split('-').map(Number);
@@ -884,7 +939,7 @@ ${harshPrompt}
   if (!text) throw new Error("未能获取基础测算结果，请稍后再试。");
   
   try {
-    const parsed = parseStructuredJson<BasicFortuneResult>(text);
+    const parsed = parseStructuredJson<BasicFortuneModelPayload>(text);
     const sanitized = sanitizeBasicFortuneSummaries(parsed);
     return {
       ...sanitized,
@@ -906,6 +961,46 @@ export async function calculateBatchDayunFortune(
   includeLiunian: boolean = true,
   options?: StreamRequestOptions
 ): Promise<DayunPhase[]> {
+  {
+    const text = await requestFortuneOutputText({
+      kind: "dayunBatch",
+      payload: {
+        gender,
+        birthDate,
+        birthTime,
+        exactBazi,
+        skeleton,
+        toneMode: resolveToneMode(toneMode),
+        includeLiunian,
+      },
+      onTextDelta: options?.onTextDelta,
+      signal: options?.signal,
+    });
+
+    try {
+      const parsed = parseStructuredJson<any>(text);
+      const dayunResult = parsed.dayun as DayunPhase[];
+
+      if (dayunResult.length !== skeleton.length) {
+        throw new Error(`大运数量丢失 (期望 ${skeleton.length}, 实际 ${dayunResult.length})`);
+      }
+      if (includeLiunian) {
+        for (let i = 0; i < dayunResult.length; i++) {
+          const expectedLiunianCount = skeleton[i].liunian ? skeleton[i].liunian.length : 0;
+          const actualLiunianCount = dayunResult[i].liunian ? dayunResult[i].liunian.length : 0;
+          if (actualLiunianCount !== expectedLiunianCount) {
+            throw new Error(`流年年份丢失 (大运 ${dayunResult[i].ganzhi} 期望 ${expectedLiunianCount}年, 实际返回 ${actualLiunianCount}年)`);
+          }
+        }
+      }
+
+      return dayunResult;
+    } catch (e: any) {
+      console.warn("AI输出数据不完整或解析失败，触发重试拦截:", e.message);
+      throw new Error("AI偷偷省略了部分年份，触发数据补全重试。");
+    }
+  }
+
   const harshPrompt = getTonePrompt(toneMode);
 
   const skeletonJson = JSON.stringify(skeleton, null, 2);
@@ -1273,6 +1368,13 @@ export async function calculateLuRen(
   toneMode: ToneMode | boolean = "default",
   options?: StreamRequestOptions
 ): Promise<LuRenResult> {
+  return requestFortuneOutput<LuRenResult>({
+    kind: "luren",
+    payload: { question, date, time, toneMode: resolveToneMode(toneMode) },
+    onTextDelta: options?.onTextDelta,
+    signal: options?.signal,
+  });
+
   const harshPrompt = getTonePrompt(toneMode);
 
   const prompt = `
@@ -1362,6 +1464,13 @@ export async function calculateXiaoLuRen(
   toneMode: ToneMode | boolean = "default",
   options?: StreamRequestOptions
 ): Promise<XiaoLuRenResult> {
+  return requestFortuneOutput<XiaoLuRenResult>({
+    kind: "xiaoluren",
+    payload: { question, date, time, toneMode: resolveToneMode(toneMode) },
+    onTextDelta: options?.onTextDelta,
+    signal: options?.signal,
+  });
+
   const harshPrompt = getTonePrompt(toneMode);
 
   const prompt = `
@@ -1426,6 +1535,14 @@ export async function calculateLiuYao(
   tosses?: number[],
   options?: StreamRequestOptions
 ): Promise<LiuYaoResult> {
+  const result = await requestFortuneOutput<LiuYaoResult>({
+    kind: "liuyao",
+    payload: { question, date, time, toneMode: resolveToneMode(toneMode), method, tosses },
+    onTextDelta: options?.onTextDelta,
+    signal: options?.signal,
+  });
+  return normalizeLiuYaoResult(result);
+
   const harshPrompt = getTonePrompt(toneMode);
 
   let methodPrompt = "";
@@ -1515,6 +1632,17 @@ export async function calculateDailyFortune(
   targetDate: string,
   options?: StreamRequestOptions
 ): Promise<DailyFortuneResult> {
+  const dailyResult = await requestFortuneOutput<DailyFortuneResult>({
+    kind: "dailyFortune",
+    payload: { gender, birthDate, birthTime, targetDate },
+    onTextDelta: options?.onTextDelta,
+    signal: options?.signal,
+  });
+  return {
+    ...dailyResult,
+    shensha: buildDailyShensha(targetDate),
+  };
+
   const [year, month, day] = birthDate.split('-').map(Number);
   const [hour, minute] = birthTime.split(':').map(Number);
   const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
@@ -1620,6 +1748,22 @@ export async function calculateCompatibility(
   relationship: CompatibilityRelationship = DEFAULT_COMPATIBILITY_RELATIONSHIP,
   options?: StreamRequestOptions
 ): Promise<CompatibilityResult> {
+  return requestFortuneOutput<CompatibilityResult>({
+    kind: "compatibility",
+    payload: {
+      gender1,
+      birthDate1,
+      birthTime1,
+      gender2,
+      birthDate2,
+      birthTime2,
+      toneMode: resolveToneMode(toneMode),
+      relationship,
+    },
+    onTextDelta: options?.onTextDelta,
+    signal: options?.signal,
+  });
+
   const [year1, month1, day1] = birthDate1.split('-').map(Number);
   const [hour1, minute1] = birthTime1.split(':').map(Number);
   const solar1 = Solar.fromYmdHms(year1, month1, day1, hour1, minute1, 0);

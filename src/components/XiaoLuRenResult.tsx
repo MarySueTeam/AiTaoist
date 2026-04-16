@@ -4,6 +4,7 @@ import { XiaoLuRenResult as IXiaoLuRenResult } from '../services/fortuneService'
 import { Scroll, MessageCircle, Share2, Download, Loader2 } from 'lucide-react';
 import { shareAsImage } from '../utils/shareUtils';
 import { useState, useRef } from 'react';
+import { sanitizeDisplayText, shouldUseCompactDivinationLayout } from '../utils/displayUtils';
 
 interface XiaoLuRenResultProps {
   result: IXiaoLuRenResult;
@@ -14,6 +15,7 @@ export default function XiaoLuRenResult({ result, onReset }: XiaoLuRenResultProp
   const SHARE_CARD_ID = 'xiaoluren-share-card';
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const compactGongwei = shouldUseCompactDivinationLayout(result.gongwei, 4);
 
   const handleShare = async () => {
     setIsGeneratingImage(true);
@@ -40,16 +42,29 @@ export default function XiaoLuRenResult({ result, onReset }: XiaoLuRenResultProp
           小六壬落宫
         </h3>
         
-        <div className="flex justify-around items-end h-40">
-          {result.gongwei.map((gong, idx) => (
-            <div key={idx} className="flex flex-col items-center">
-              <span className="text-xs text-jade mb-4 tracking-widest">{['月落', '日落', '时落'][idx]}</span>
-              <div className="writing-vertical text-4xl md:text-5xl font-bold tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-paper to-paper/50">
-                {gong}
+        {compactGongwei ? (
+          <div className="flex justify-around items-end h-40">
+            {result.gongwei.map((gong, idx) => (
+              <div key={idx} className="flex flex-col items-center">
+                <span className="text-xs text-jade mb-4 tracking-widest">{['月落', '日落', '时落'][idx]}</span>
+                <div className="writing-vertical text-4xl md:text-5xl font-bold tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-paper to-paper/50">
+                  {sanitizeDisplayText(gong)}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {result.gongwei.map((gong, idx) => (
+              <div key={idx} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-5 text-center">
+                <div className="text-xs text-jade mb-3 tracking-widest">{['月落', '日落', '时落'][idx]}</div>
+                <div className="text-sm md:text-base leading-relaxed text-paper/90 whitespace-pre-wrap break-words">
+                  {sanitizeDisplayText(gong)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 测算结果区 */}
@@ -86,11 +101,13 @@ export default function XiaoLuRenResult({ result, onReset }: XiaoLuRenResultProp
           <div className="rounded-[32px] border border-[#d5d0c4] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] overflow-hidden">
             <div className="bg-[#1f2937] text-[#f8f4ec] px-10 py-8">
               <div className="text-xs tracking-[0.45em] text-[#7ab89a] mb-3">小六壬</div>
-              <div className="grid grid-cols-3 gap-5">
+              <div className={`grid gap-5 ${compactGongwei ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 {result.gongwei.map((gong, idx) => (
                   <div key={`gongwei-${idx}`} className="rounded-[24px] border border-white/10 bg-white/5 p-6 text-center">
                     <div className="text-sm text-white/60 tracking-[0.28em] mb-4">{['月落', '日落', '时落'][idx]}</div>
-                    <div className="text-4xl font-bold tracking-[0.22em] text-white">{gong}</div>
+                    <div className={compactGongwei ? 'text-4xl font-bold tracking-[0.22em] text-white' : 'text-sm leading-relaxed whitespace-pre-wrap break-words text-white/90'}>
+                      {sanitizeDisplayText(gong)}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -260,20 +260,24 @@ tsc --noEmit
 前端不会直接请求外部模型接口，而是请求同源代理：
 
 - `GET /api/models`
-- `POST /api/responses`
+- `POST /api/fortune`
 
-### 服务端代理链
+### 服务端业务链
 
-[server.js](./server.js) 会将请求转发到：
+[server.js](./server.js) 不再提供通用 OpenAI 透传代理。前端只提交测算类型与业务参数，例如出生信息、起卦问题、合盘关系类型等；服务端校验白名单后，在服务器内组装 prompt、schema 与模型请求，再转发到：
 
-- `${OPENAI_BASE_URL}/models`
 - `${OPENAI_BASE_URL}/responses`
 
 这样做有几个目的：
 
 - 避免在浏览器中暴露 API Key
+- 避免 `/api/responses` 被当作通用 OpenAI 代理滥用
+- 只允许 `basicFortune`、`compatibility`、`luren`、`xiaoluren`、`liuyao`、`dailyFortune`、`dayunBatch` 等业务测算请求
+- 模型列表与模型选择仍跟随上游 `/models`，但结构化输出 schema 固定由服务端生成
 - 规避 HTTPS 页面下的跨域与混合内容问题
 - 对接第三方 OpenAI 兼容网关时，统一在服务端切换配置
+
+`POST /api/responses` 已禁用，会返回 `410 Gone`。
 
 ### 结构化输出
 
@@ -352,7 +356,7 @@ output[0].content[0].text
 模型列表来源：
 
 - 优先读取 `/api/models`
-- 若远端模型列表获取失败，则回退到内置模型列表
+- 服务端从 `${OPENAI_BASE_URL}/models` 读取并返回上游可用模型
 
 默认模型：
 
